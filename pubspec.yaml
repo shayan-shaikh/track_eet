@@ -1,0 +1,29 @@
+name: track_eet
+description: A Flutter app for tracking media items
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.2.8
+  path: ^1.8.3
+  image_picker: ^1.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.9.2
+
+flutter:
+  uses-material-design: true
+
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#ffffff" 
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
