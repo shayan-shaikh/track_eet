@@ -65,10 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  int calculateDurationInDays({required DateTime startedAt, DateTime? endedAt}) {
-  endedAt ??= DateTime.now();
-  return endedAt.difference(startedAt).inDays;
-}
 
   void _deleteMediaItem(int id) async {
     try {
@@ -191,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           subtitle: Text(
-                            '${item.type} | Rating: ${item.rating}/5 | ${calculateDurationInDays(startedAt: item.startedAt, endedAt: item.endedAt)}',
+                            '${item.type} | Rating: ${item.rating}/5',
                             style: const TextStyle(color: Colors.black87),
                           ),
                           trailing: Row(
