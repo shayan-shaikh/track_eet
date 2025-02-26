@@ -13,6 +13,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<MediaItem> _allMediaItems = [];
   List<MediaItem> _filteredMediaItems = [];
   String _selectedType = 'All';
+  String _selectedSort = 'Alphabetically';
   final List<String> _mediaTypes = [
     'All',
     'Books',
@@ -20,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'Series',
     'Games'
   ];
+  final List<String> _sortOptions = ['Alphabetically', 'Rating', 'Duration'];
 
   @override
   void initState() {
@@ -32,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final items = await DatabaseHelper.instance.readAllMediaItems();
       setState(() {
         _allMediaItems = items;
-        _filteredMediaItems = items;
+        _filterAndSortItems();
       });
     } catch (e) {
       print('Error loading media items: $e');
@@ -46,9 +48,39 @@ class _HomeScreenState extends State<HomeScreen> {
   void _filterItems(String type) {
     setState(() {
       _selectedType = type;
-      _filteredMediaItems = type == 'All'
-          ? _allMediaItems
-          : _allMediaItems.where((item) => item.type == type).toList();
+      _filterAndSortItems();
+    });
+  }
+
+  void _sortItems(String sort) {
+    setState(() {
+      _selectedSort = sort;
+      _filterAndSortItems();
+    });
+  }
+
+int calculateDurationInDays({required DateTime startedAt, DateTime? endedAt}) {
+  endedAt ??= DateTime.now();
+  return endedAt.difference(startedAt).inDays;
+}
+
+  void _filterAndSortItems() {
+    List<MediaItem> filtered = _selectedType == 'All'
+        ? _allMediaItems
+        : _allMediaItems.where((item) => item.type == _selectedType).toList();
+
+    if (_selectedSort == 'Alphabetically') {
+      filtered
+          .sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    } else if (_selectedSort == 'Rating') {
+      filtered.sort((a, b) => a.rating.compareTo(b.rating)); 
+    }
+    else if(_selectedSort == 'Duration'){
+      filtered.sort((a,b) => calculateDurationInDays(startedAt: a.startedAt, endedAt: a.endedAt).compareTo(calculateDurationInDays(startedAt: b.startedAt, endedAt: b.endedAt)));
+    }
+
+    setState(() {
+      _filteredMediaItems = filtered;
     });
   }
 
@@ -65,11 +97,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
   void _deleteMediaItem(int id) async {
     try {
       await DatabaseHelper.instance.delete(id);
-      _loadMediaItems(); // Refresh the list after deletion
+      _loadMediaItems(); 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Item deleted successfully')),
       );
@@ -90,12 +121,12 @@ class _HomeScreenState extends State<HomeScreen> {
         content: const Text('Are you sure you want to delete this item?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(), // Close dialog
+            onPressed: () => Navigator.of(context).pop(), 
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop(); 
               _deleteMediaItem(id);
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -103,6 +134,40 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  void _showSortMenu(BuildContext context) async {
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final String? result = await showMenu<String>(
+      context: context,
+      position: position,
+      items: _sortOptions.map((String option) {
+        return PopupMenuItem<String>(
+          value: option,
+          child: Row(
+            children: [
+              Text(option),
+              const SizedBox(width: 8),
+              if (_selectedSort == option)
+                const Icon(Icons.check, color: Colors.indigoAccent),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+
+    if (result != null) {
+      _sortItems(result);
+    }
   }
 
   @override
@@ -116,40 +181,62 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              child: DropdownButton<String>(
-                value: _selectedType,
-                isExpanded: true,
-                dropdownColor: Colors.indigo.shade100,
-                underline: const SizedBox(),
-                icon: const Icon(Icons.arrow_drop_down, color: Colors.indigo),
-                items: _mediaTypes.map((String type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(
-                        type,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                // Type filter dropdown
+                Expanded(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      borderRadius: BorderRadius.circular(8.0),
                     ),
-                  );
-                }).toList(),
-                onChanged: (String? type) {
-                  if (type != null) {
-                    _filterItems(type);
-                  }
-                },
-              ),
+                    child: DropdownButton<String>(
+                      value: _selectedType,
+                      isExpanded: true,
+                      dropdownColor: Colors.indigo.shade100,
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.indigo),
+                      items: _mediaTypes.map((String type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(
+                              type,
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (String? type) {
+                        if (type != null) {
+                          _filterItems(type);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                
+                // Sort button
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: IconButton(
+                      tooltip: 'Sort by $_selectedSort',
+                      icon: const Icon(Icons.sort, color: Colors.indigo),
+                      onPressed: () => _showSortMenu(context),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          // Media Items List
+
           Expanded(
             child: _filteredMediaItems.isEmpty
                 ? const Center(
@@ -205,8 +292,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
-
-                          // onTap: () => _editMediaItem(item),
                         ),
                       );
                     },
